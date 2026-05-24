@@ -606,13 +606,13 @@ window.onload = function() {
 window.playStoneSound = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
     osc.type = "sine"; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.1); osc.frequency.exponentialRampToValueAtTime(200, now + 1.5);
-    gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+    gain.gain.setValueAtTime(1.0, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
     osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 2.1);
 };
 window.playFootstep = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
     osc.type = "triangle"; osc.frequency.setValueAtTime(60, now); osc.frequency.exponentialRampToValueAtTime(10, now + 0.12);
-    gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    gain.gain.setValueAtTime(0.6, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 0.13);
 };
 window.playScareSound = function() {
@@ -620,7 +620,7 @@ window.playScareSound = function() {
     for (let i = 0; i < 3; i++) {
         let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();       
         osc.type = "sawtooth"; osc.frequency.setValueAtTime(100 + i * 45, now); osc.frequency.linearRampToValueAtTime(800 - i * 100, now + 0.8);
-        gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+        gain.gain.setValueAtTime(0.6, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
         osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 1.0);
     }
 };
@@ -628,7 +628,7 @@ window.playBatteryGetSound = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let freqs = [330, 440, 660, 880];
     freqs.forEach((f, idx) => {
         let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
-        osc.type = "sine"; osc.frequency.setValueAtTime(f, now + idx * 0.05); gain.gain.setValueAtTime(0.2, now + idx * 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.2);
+        osc.type = "sine"; osc.frequency.setValueAtTime(f, now + idx * 0.05); gain.gain.setValueAtTime(0.5, now + idx * 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.2);
         osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.22);
     });
 };
@@ -649,7 +649,7 @@ window.playTrapSound = function() {
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(200, now);
     osc.frequency.exponentialRampToValueAtTime(1000, now + 0.05);
-    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.setValueAtTime(1.0, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain); gain.connect(window.audioCtx.destination);
     osc.start(now); osc.stop(now + 0.2);
