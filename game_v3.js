@@ -1,5 +1,5 @@
 // ==========================================
-// 🎮 game_v3.js : 全機能統合版（自律型AI・スマホ最適化・バグ修正版）
+// 🎮 game_v3.js : 全機能統合版（自律型AI オートプレイ強化版）
 // ==========================================
 
 window.Game = {
@@ -305,26 +305,21 @@ window.triggerScare = function(isGameOver = false) {
     setTimeout(() => {
         if (scareImg) scareImg.classList.remove('show'); 
         setTimeout(() => {
-            if (scareOverlay) {
-                scareOverlay.style.display = 'none'; 
-                // ダイアログ窓の非表示化を防ぐ
-                let diagBox = document.getElementById('dialogue-window');
-                if (diagBox) diagBox.style.display = "flex";
-            }
-            window.Game.isScaring = false;
+            if (scareOverlay) scareOverlay.style.display = 'none'; window.Game.isScaring = false;
             if (isGameOver) { initGame(); } else { relocateChaserFarAway(); if (typeof window.playSynthBgm === 'function') window.playSynthBgm(); if (typeof window.triggerPanicDialogue === 'function') window.triggerPanicDialogue(); if (window.Game.isAutoPlay) startAutoPlayLoop(); }
         }, 250); 
     }, 1200);
 };
 
 // ==================================================
-// 🤖 自律型オートプレイAIループ（ゆったりテンポ版: 800ms）
+// 🤖 超進化版 自律型オートプレイAI（BFSマッピング＆危険回避）
 // ==================================================
 function startAutoPlayLoop() {
     if (!window.Game.isAutoPlay || window.Game.isScaring) return;
     window.Game.autoTimer = setTimeout(() => {
         let px = Math.floor(window.Game.player.x), py = Math.floor(window.Game.player.y);
         
+        // 1. 敵の脅威度と危険地帯のマッピング
         let threatLevel = 0;
         let dangerousTiles = {};
         let nearestEnemyDist = 999;
@@ -335,30 +330,36 @@ function startAutoPlayLoop() {
             if (dist < nearestEnemyDist) nearestEnemyDist = dist;
             
             if (dist <= 6) {
+                // 敵の周囲を危険地帯として避ける
                 dangerousTiles[`${cx},${cy}`] = true;
                 for(let d of dirVec) dangerousTiles[`${cx+d.x},${cy+d.y}`] = true;
                 
+                // 視線が通っていればパニック度アップ
                 if (window.Enemies && window.Enemies.Helpers && window.Enemies.Helpers.checkLineOfSight(px, py, cx, cy, window.Game.mapDataArray)) {
                     threatLevel += (7 - dist);
                 }
             }
         });
         
+        // 2. 透明化（ステルス）の自動発動判断
         if ((threatLevel >= 3 || nearestEnemyDist <= 2) && !window.Game.isStealth && !window.Game.stoneCooldown) {
             let btn = document.getElementById('stone-btn');
             if (btn) btn.click();
         }
         
+        // ステルス中は敵を無視して強行突破
         if (window.Game.isStealth) dangerousTiles = {};
         
+        // 3. ゴールの視認判定（ミニマップチート無し）
         let knownGoal = null;
         let goalDist = Math.abs(px - window.Game.goal.x) + Math.abs(py - window.Game.goal.y);
         if (goalDist <= 6 && window.Enemies && window.Enemies.Helpers) {
-            if (window.Enemies.Helpers.checkLineOfSight(px, py, window.Game.goal.x, window.Game.goal.y, window.Game.player.dir)) {
-                knownGoal = { x: window.Game.goal.x, y: window.Game.goal.y }; 
+            if (window.Enemies.Helpers.checkLineOfSight(px, py, window.Game.goal.x, window.Game.goal.y, window.Game.mapDataArray)) {
+                knownGoal = { x: window.Game.goal.x, y: window.Game.goal.y }; // 視界に捉えた！
             }
         }
         
+        // 4. BFSによる経路探索（最大20マス先まで）
         let queue = [{x: px, y: py, path: []}];
         let visited = {};
         visited[`${px},${py}`] = true;
@@ -370,12 +371,15 @@ function startAutoPlayLoop() {
             let curr = queue.shift();
             
             if (curr.path.length > 0) {
+                // 優先度1: 視認済みのゴール
                 if (knownGoal && curr.x === knownGoal.x && curr.y === knownGoal.y) {
                     targetPath = curr.path; break;
                 }
+                // 優先度2: バッテリーの自発的回収
                 if (window.Game.batteries[`${curr.x},${curr.y}`] && window.Game.battery <= 85) {
                     targetPath = curr.path; break;
                 }
+                // 優先度3: マッピング（未訪問のマスへ）
                 if (!window.Game.visitedTiles[`${curr.x},${curr.y}`]) {
                     targetPath = curr.path; break;
                 }
@@ -383,15 +387,15 @@ function startAutoPlayLoop() {
             }
             if (curr.path.length > 20) continue; 
             
-            let dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5); 
+            let dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5); // 行動のランダム性
             for (let i of dirs) {
                 let nx = curr.x + dirVec[i].x, ny = curr.y + dirVec[i].y;
                 let key = `${nx},${ny}`;
                 
                 if (nx <= 0 || nx >= window.Game.MAP_SIZE - 1 || ny <= 0 || ny >= window.Game.MAP_SIZE - 1) continue;
-                if (window.Game.mapDataArray[ny][nx] === 1) continue; 
-                if (window.Game.fakeWalls && window.Game.fakeWalls[key] > Date.now()) continue; 
-                if (dangerousTiles[key]) continue; 
+                if (window.Game.mapDataArray[ny][nx] === 1) continue; // 壁
+                if (window.Game.fakeWalls && window.Game.fakeWalls[key] > Date.now()) continue; // 偽壁
+                if (dangerousTiles[key]) continue; // 危険地帯
                 
                 if (!visited[key]) {
                     visited[key] = true;
@@ -404,8 +408,9 @@ function startAutoPlayLoop() {
         if (targetPath && targetPath.length > 0) {
             nextDir = targetPath[0];
         } else if (fallbackPath && fallbackPath.length > 0) {
-            nextDir = fallbackPath[0]; 
+            nextDir = fallbackPath[0]; // 行き止まりなら一番遠くまで行ける道へ退避
         } else {
+            // パニック状態（安全な道が全くない場合）はランダムに足掻く
             let cands = [];
             for (let i = 0; i < 4; i++) {
                 let nx = px + dirVec[i].x, ny = py + dirVec[i].y;
@@ -427,7 +432,7 @@ function startAutoPlayLoop() {
             checkAndTriggerWalkingDialogue(); 
             startAutoPlayLoop(); 
         }
-    }, 800); // 💡 800ms に設定（目で追いやすいゆったりスピード）
+    }, 800); // サクサク動かす
 }
 
 function handleAutoBtnClick(e) {
@@ -472,7 +477,7 @@ function updateStoneBtnUI() {
         btn.style.color = "#000";
         btn.style.boxShadow = "0 0 15px #00ffff";
     } else if (window.Game.stoneCooldown) {
-        btn.innerText = stoneCooldownSeconds.toString(); 
+        btn.innerText = stoneCooldownSeconds.toString(); // 💡 秒数のみをシンプルに表示
         btn.style.background = "#333";
         btn.style.color = "#888";
         btn.style.borderColor = "#555";
@@ -499,6 +504,7 @@ function cooldownTick() {
     }
 }
 
+// 💡 透明化スキルの実行ロジック（UI変更＆回転バグ防止対応）
 function useStone(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); } 
     if (window.Game.stoneCooldown || window.Game.isStealth) return;
@@ -512,10 +518,10 @@ function useStone(e) {
     
     setTimeout(() => {
         window.Game.isStealth = false;
-        stoneCooldownSeconds = 20; 
+        stoneCooldownSeconds = 20; // 💡 20秒のカウントダウン開始
         updateStoneBtnUI();
         stoneCooldownTimer = setTimeout(cooldownTick, 1000);
-    }, 5000); 
+    }, 5000); // 💡 5秒間効果持続
 }
 
 function initGame() {
@@ -573,25 +579,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (autoBtn) autoBtn.addEventListener('click', handleAutoBtnClick); 
     window.addEventListener('touchstart', handleTouchStart, {passive: false}); window.addEventListener('touchend', handleTouchEnd); 
     
-    // 💡 JS側でUI親コンテナを動的に生成（Indexを見切れないレイアウト空間に固定）
-    let uiContainer = document.getElementById('ui-container');
-    if (!uiContainer) {
-        uiContainer = document.createElement('div');
-        uiContainer.id = 'ui-container';
-        uiContainer.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1000; box-sizing: border-box; padding-bottom: env(safe-area-inset-bottom, 20px);";
-        document.body.appendChild(uiContainer);
+    // 💡 HTMLに置いた <button id="stone-btn"> を取得して紐付けるだけ
+    let stoneBtn = document.getElementById('stone-btn');
+    if (stoneBtn) {
+        stoneBtn.addEventListener('click', useStone); 
+        stoneBtn.addEventListener('touchstart', useStone, {passive: false});
+        stoneBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive: false});
     }
-    
-    let stoneBtn = document.createElement('button');
-    stoneBtn.id = 'stone-btn'; 
-    stoneBtn.innerText = '透明化';
-    // 💡 スマホのツールバー競合による見切れを防ぐため、親コンテナ基準の bottom 指定に最適化
-    stoneBtn.style.cssText = "position: absolute; bottom: 125px; left: 10px; z-index: 1001; padding: 12px 18px; background: #003366; color: #00ffff; border: 2px solid #00ffff; font-family: 'DotGothic16', monospace; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; text-shadow: 0 0 5px #00ffff; transition: all 0.3s; min-width: 80px; text-align: center; pointer-events: auto;";
-    uiContainer.appendChild(stoneBtn);
+
     
     stoneBtn.addEventListener('click', useStone); 
     stoneBtn.addEventListener('touchstart', useStone, {passive: false});
-    // 💡 touchstart と touchend の両方のイベント伝播を完璧にブロックして四半回転バグを完全解消
     stoneBtn.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive: false});
 });
 
@@ -611,13 +609,13 @@ window.onload = function() {
 window.playStoneSound = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
     osc.type = "sine"; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1500, now + 0.1); osc.frequency.exponentialRampToValueAtTime(200, now + 1.5);
-    gain.gain.setValueAtTime(0.5, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+    gain.gain.setValueAtTime(1.0, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
     osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 2.1);
 };
 window.playFootstep = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
     osc.type = "triangle"; osc.frequency.setValueAtTime(60, now); osc.frequency.exponentialRampToValueAtTime(10, now + 0.12);
-    gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    gain.gain.setValueAtTime(0.6, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
     osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 0.13);
 };
 window.playScareSound = function() {
@@ -625,7 +623,7 @@ window.playScareSound = function() {
     for (let i = 0; i < 3; i++) {
         let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();       
         osc.type = "sawtooth"; osc.frequency.setValueAtTime(100 + i * 45, now); osc.frequency.linearRampToValueAtTime(800 - i * 100, now + 0.8);
-        gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+        gain.gain.setValueAtTime(0.6, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
         osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now); osc.stop(now + 1.0);
     }
 };
@@ -633,7 +631,7 @@ window.playBatteryGetSound = function() {
     if (!window.audioCtx) return; let now = window.audioCtx.currentTime; let freqs = [330, 440, 660, 880];
     freqs.forEach((f, idx) => {
         let osc = window.audioCtx.createOscillator(); let gain = window.audioCtx.createGain();
-        osc.type = "sine"; osc.frequency.setValueAtTime(f, now + idx * 0.05); gain.gain.setValueAtTime(0.2, now + idx * 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.2);
+        osc.type = "sine"; osc.frequency.setValueAtTime(f, now + idx * 0.05); gain.gain.setValueAtTime(0.5, now + idx * 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.2);
         osc.connect(gain); gain.connect(window.audioCtx.destination); osc.start(now + idx * 0.05); osc.stop(now + idx * 0.05 + 0.22);
     });
 };
@@ -654,7 +652,7 @@ window.playTrapSound = function() {
     osc.type = "sawtooth";
     osc.frequency.setValueAtTime(200, now);
     osc.frequency.exponentialRampToValueAtTime(1000, now + 0.05);
-    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.setValueAtTime(1.0, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
     osc.connect(gain); gain.connect(window.audioCtx.destination);
     osc.start(now); osc.stop(now + 0.2);

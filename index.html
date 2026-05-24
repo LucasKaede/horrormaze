@@ -2,76 +2,109 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Retro 3D Maze Streamer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>3D Horror Maze</title>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; background-color: #000; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
-        
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
-        
-        /* HUDディスプレイ */
-        #hud { position: absolute; top: 10px; left: 10px; z-index: 100; font-family: monospace; font-size: 14px; color: #fff; text-shadow: 1px 1px 2px #000; line-height: 1.5; }
-        .hud-line { margin-bottom: 4px; }
-        
-        /* 右上のミニマップ */
-        #minimap-container { position: absolute; top: 10px; right: 10px; z-index: 100; border: 2px solid #333; background: #000; width: 100px; height: 100px; }
-        #minimapCanvas { width: 100%; height: 100%; display: block; }
+        /* 💡 スマホのブラウザやWebViewで画面を完全に固定する最強の設定 */
+        html, body {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            margin: 0; padding: 0;
+            background-color: #000; color: #fff;
+            font-family: 'DotGothic16', sans-serif;
+            overflow: hidden; touch-action: none;
+        }
 
-        /* オートプレイボタン */
-        #auto-btn { position: absolute; bottom: 130px; right: 10px; z-index: 100; padding: 8px 12px; background: #222; color: #fff; border: 1px solid #55px; font-size: 12px; cursor: pointer; border-radius: 4px; }
-        #auto-btn.active { background: #600; color: #ff0; border-color: #f00; }
+        #game-wrapper {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
 
-        /* ホラー演出用オーバーレイ */
-        #scare-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        #scare-img { max-width: 80%; max-height: 80%; display: block; transform: scale(0.5); transition: transform 0.2s ease-out; }
-        #scare-img.show { transform: scale(1.1); }
+        #gameCanvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+        }
 
-        /* 👧 配信風ダイアログウィンドウ（最前面・文字生成エリア） */
-        #dialogue-window { position: absolute; bottom: 10px; left: 10px; right: 10px; height: 100px; background: rgba(0, 0, 0, 0.8); border: 3px double #777; border-radius: 6px; padding: 10px; display: flex; align-items: center; z-index: 2000; pointer-events: none; }
-        #face-box { width: 80px; height: 80px; border: 1px solid #444; background: #111; display: flex; justify-content: center; align-items: center; margin-right: 12px; flex-shrink: 0; }
-        #pokemon-face-img { width: 100%; height: 100%; object-fit: contain; }
-        #text-box { flex-grow: 1; height: 100%; color: #fff; font-size: 14px; line-height: 1.4; overflow: hidden; font-family: sans-serif; }
-        #pokemon-text { width: 100%; height: 100%; white-space: normal; word-break: break-all; }
+        #hud-container {
+            position: absolute; top: 10px; left: 10px; z-index: 10;
+            text-shadow: 1px 1px 2px #000; pointer-events: none;
+        }
+        #hud-container p { margin: 2px 0; font-size: 16px; }
+        
+        #minimap-container {
+            position: absolute; top: 10px; right: 10px; z-index: 10;
+            border: 1px solid #555; background: #000; pointer-events: none;
+        }
+
+        /* 💡 ダイアログを基準に、その上にボタンを配置する */
+        #dialogue-window {
+            position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+            width: 95%; max-width: 600px; height: 90px;
+            background: rgba(0, 0, 0, 0.85); border: 2px solid #ccc; border-radius: 8px;
+            display: flex; align-items: center; padding: 5px; box-sizing: border-box;
+            z-index: 20; pointer-events: auto;
+        }
+        #pokemon-face-img {
+            width: 80px; height: 80px; object-fit: contain;
+            border: 1px solid #555; background: #111; margin-right: 10px;
+        }
+        #pokemon-text {
+            flex: 1; font-size: 16px; line-height: 1.4; word-wrap: break-word;
+        }
+
+        /* 💡 HTML側にボタンを直接配置（ダイアログの上の位置） */
+        #stone-btn {
+            position: absolute; bottom: 115px; left: 10px; /* 15(下余白)+90(顔窓)+10(隙間) = 115px */
+            padding: 12px 18px; background: #003366; color: #00ffff;
+            border: 2px solid #00ffff; font-family: 'DotGothic16', sans-serif; font-size: 16px;
+            font-weight: bold; border-radius: 6px; cursor: pointer;
+            text-shadow: 0 0 5px #00ffff; z-index: 20; pointer-events: auto; min-width: 80px; text-align: center;
+        }
+
+        #auto-btn {
+            position: absolute; bottom: 115px; right: 10px;
+            padding: 8px 12px; background: #222; color: #aaa; border: 1px solid #555;
+            border-radius: 4px; font-family: 'DotGothic16', sans-serif; font-size: 14px;
+            z-index: 20; cursor: pointer; pointer-events: auto;
+        }
+        #auto-btn.active { background: #004400; color: #0f0; border-color: #0f0; }
+
+        #scare-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 99999;
+        }
+        #scare-img { max-width: 90%; max-height: 90%; display: none; }
+        #scare-img.show { display: block; }
     </style>
 </head>
 <body>
-
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-
-        <div id="hud">
-            <div class="hud-line">STEPS: <span id="steps">000000</span></div>
-            <div class="hud-line" id="battery-hud">⚡LIGHT: 100%</div>
-            <div class="hud-line" id="mental-hud">❤️MENTAL: 100%</div>
+    <div id="game-wrapper">
+        <canvas id="gameCanvas" width="640" height="480"></canvas>
+        
+        <div id="hud-container">
+            <p id="steps">STEPS: 000000</p>
+            <p id="battery-hud">⚡LIGHT: 100%</p>
+            <p id="mental-hud">❤️MENTAL: 100%</p>
         </div>
 
         <div id="minimap-container">
-            <canvas id="minimapCanvas" width="100" height="100"></canvas>
+            <canvas id="minimapCanvas" width="120" height="120"></canvas>
         </div>
 
+        <button id="stone-btn">透明化</button>
         <button id="auto-btn">LIVE: OFF</button>
 
-        <div id="scare-overlay">
-            <img id="scare-img" src="assets/scares/1.png" alt="SCARE">
+        <div id="dialogue-window">
+            <img id="pokemon-face-img" src="assets/faces/3.png" alt="face">
+            <div id="pokemon-text">うわ、真っ暗……。ここどこだよ、早く帰りたいんだけど……。</div>
         </div>
 
-        <div id="dialogue-window">
-            <div id="face-box">
-                <img id="pokemon-face-img" src="assets/faces/3.png" alt="face">
-            </div>
-            <div id="text-box">
-                <div id="pokemon-text"></div>
-            </div>
+        <div id="scare-overlay">
+            <img id="scare-img" src="" alt="scare">
         </div>
     </div>
 
-    <!-- 追加位置の例 -->
     <script src="enemies.js"></script>
-    <script src="game_v3.js"></script>
     <script src="dialogues.js"></script>
-    <script src="camera.js"></script>
-
+    <script src="camera.js"></script> 
+    <script src="game_v3.js"></script>
 </body>
 </html>
