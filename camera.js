@@ -186,3 +186,40 @@
         if (container) { canvas.width = container.clientWidth; canvas.height = container.clientHeight; }
     };
 })();
+// camera.js の最後の方に以下を追加してください
+
+// 💡 電池と周囲の歯をセットで描画する専用関数
+window.renderTrap = function(ctx, canvas, sprite, texture, fov, maxDist, zBuffer, renderY, renderHeight, viewX, viewY, cameraBackoff) {
+    if (!sprite) return;
+    
+    // 既存の renderSprite と同じ投影計算を使用
+    let gx = sprite.x + 0.5 - viewX; let gy = sprite.y + 0.5 - viewY;
+    let spriteAngle = Math.atan2(gy, gx) - window.camV.angle;
+    while (spriteAngle < -Math.PI) spriteAngle += Math.PI * 2; while (spriteAngle > Math.PI) spriteAngle -= Math.PI * 2;
+    if (Math.abs(spriteAngle) >= fov / 1.5) return;
+    let spriteDist = Math.sqrt(gx * gx + gy * gy);
+    if (spriteDist <= 0.1 || spriteDist >= (maxDist + cameraBackoff)) return;
+    
+    let correctedDist = spriteDist * Math.cos(spriteAngle);
+    let baseSize = Math.floor(renderHeight / correctedDist);
+    let baseX = Math.floor((1 - (spriteAngle + fov / 2) / fov) * canvas.width);
+    let baseY = renderY + (renderHeight / 2) + (baseSize * 0.2); // 底辺
+
+    // 💡 1. まず「歯」を先に描画（電池の裏側になるように）
+    ctx.fillStyle = "#111"; // 黒に近いダークグレー
+    for (let i = 0; i < 8; i++) {
+        let angle = (i / 8) * Math.PI * 2;
+        let tx = baseX + Math.cos(angle) * (baseSize * 0.3);
+        let ty = baseY + Math.sin(angle) * (baseSize * 0.3);
+        // Zバッファ判定（壁の向こうなら描画しない）
+        let rayIdx = Math.floor((1 - (spriteAngle + fov / 2) / fov) * canvas.width);
+        if (zBuffer[rayIdx] && spriteDist < zBuffer[rayIdx]) {
+            ctx.beginPath(); ctx.moveTo(tx, ty); 
+            ctx.lineTo(tx + Math.cos(angle)*15, ty + Math.sin(angle)*15); 
+            ctx.lineTo(tx + 5, ty + 5); ctx.fill();
+        }
+    }
+
+    // 💡 2. 電池本体を重ねて描画
+    window.renderSprite(ctx, canvas, sprite, texture, fov, maxDist, zBuffer, renderY, renderHeight, viewX, viewY, cameraBackoff, 0.4, true);
+};
