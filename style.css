@@ -1,0 +1,213 @@
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+
+/* 全体のリセットとベース設定 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+body, html {
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    font-family: 'DotGothic16', 'Courier New', monospace;
+    overflow: hidden;
+    color: #fff;
+}
+
+/* 画面全体のフルスクリーンラッパー */
+.game-wrapper {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* 3Dゲーム画面（元の全画面表示・配置を維持） */
+.game-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%; 
+    background: #000;
+    z-index: 1;
+    overflow: hidden;
+}
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+}
+
+/* 📺 3Dカメラの直上に重ねるレトロ走査線エフェクト */
+/* 🛠️ 重複＆サイズ修正：左上HUD・LIVEボタンの真下（140px）から、セリフ窓の直上（縦幅76%分）までの範囲に限定密閉！ */
+.game-container::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 140px; /* 🛠️ 左上HUDやライブボタンと絶対に重ならないように開始位置を下に下げました */
+    left: 0;
+    width: 100%;
+    height: 76%; /* 🛠️ 下のセリフ窓の手前まで、3Dカメラの映る範囲を縦長に大きく広げました */
+    pointer-events: none; /* タッチやクリック操作を完全に貫通 */
+    z-index: 2; /* Canvasのすぐ真上 */
+    
+    /* 1マス幅の細いテレビの走査線ノイズをベースに敷き詰める */
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, red, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+    background-size: 100% 3px, 3px 100%;
+}
+
+/* 左上：ステータスHUD & ライブボタン */
+.hud-left-top {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    min-width: 160px;
+}
+.hud-item {
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 5px rgba(0,0,0,1);
+}
+.hud-label {
+    color: #aaa;
+}
+
+/* LIVEボタンのデザイン */
+#auto-btn {
+    margin-top: 5px;
+    padding: 6px 12px;
+    background: #222;
+    border: 1px solid #444;
+    color: #ff3333;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+    text-align: center;
+    font-family: 'DotGothic16', sans-serif;
+}
+#auto-btn.active {
+    background: #ff3333;
+    color: #fff;
+    border-color: #ff6666;
+    box-shadow: 0 0 10px rgba(255,51,51,0.6);
+}
+
+/* 右上：ミニマップ */
+.hud-right-top {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+#minimapCanvas {
+    display: block;
+    width: 100px;
+    height: 100px;
+    border-radius: 4px;
+}
+
+/* 下部：ポケモンダンジョン風オーバーレイ・ダイアログウィンドウ */
+.pokemon-dialog-wrapper {
+    position: absolute;
+    bottom: 20px;
+    left: 5%;
+    width: 90%;
+    height: 20vh;
+    background: rgba(12, 12, 18, 0.85); 
+    border: 3px solid #282838;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.75), inset 0 0 0 2px #0c0c12, inset 0 0 0 4px #484858;
+    z-index: 5;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-radius: 10px;
+    pointer-events: auto;
+}
+
+/* 左側：顔画像フレーム枠 */
+.pokemon-face-box {
+    width: 80px;
+    height: 80px;
+    min-width: 80px;
+    background: #000;
+    border: 3px solid #484858;
+    border-radius: 6px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.9);
+}
+#pokemon-face-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+#pokemon-face-fallback {
+    font-size: 20px;
+    color: #333;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 右側：レトロドット風流れるテキスト領域 */
+#pokemon-text {
+    flex: 1;
+    height: 100%;
+    font-family: 'DotGothic16', 'MS Gothic', monospace;
+    font-size: 18px;
+    line-height: 1.5;
+    color: #fff;
+    font-weight: bold;
+    word-break: break-all;
+    overflow-y: auto;
+    padding-right: 5px;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: none;
+}
+
+/* ジャンプスケアオーバーレイ */
+#scare-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.9);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#scare-img {
+    max-width: 100%;
+    max-height: 100%;
+    transform: scale(0.8);
+    transition: transform 0.1s ease-out;
+}
+#scare-img.show {
+    transform: scale(1.1);
+}
